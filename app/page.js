@@ -9,25 +9,22 @@ const [input,setInput]=useState("")
 const [repo,setRepo]=useState("")
 const [model,setModel]=useState("groq")
 const [mode,setMode]=useState("plan")
+const [showSettings,setShowSettings]=useState(false)
 const [loading,setLoading]=useState(false)
-const [showSidebar,setShowSidebar]=useState(false)
 
 const chatRef = useRef(null)
 
 useEffect(()=>{
-if(chatRef.current){
-chatRef.current.scrollTop = chatRef.current.scrollHeight
-}
+chatRef.current?.scrollTo(0, chatRef.current.scrollHeight)
 },[messages,loading])
 
 async function sendMessage(){
 
 if(!input) return
 
-setLoading(true)
-
 const userMsg = input
 setInput("")
+setLoading(true)
 
 setMessages(prev=>[
 ...prev,
@@ -56,20 +53,27 @@ setLoading(false)
 }
 
 return(
+
 <div style={styles.app}>
 
-{/* TOP BAR */}
+{/* TOP BAR (simple like mobile app) */}
 <div style={styles.topBar}>
-<button onClick={()=>setShowSidebar(!showSidebar)} style={styles.menuBtn}>
-☰
-</button>
+
 <div style={styles.title}>AI Agent</div>
+
+<button
+style={styles.settingsBtn}
+onClick={()=>setShowSettings(!showSettings)}
+>
+⚙️
+</button>
+
 </div>
 
-{/* SIDEBAR DRAWER */}
-{showSidebar && (
-<div style={styles.overlay} onClick={()=>setShowSidebar(false)}>
-<div style={styles.sidebar} onClick={e=>e.stopPropagation()}>
+{/* SETTINGS MODAL */}
+{showSettings && (
+<div style={styles.modal} onClick={()=>setShowSettings(false)}>
+<div style={styles.modalBox} onClick={e=>e.stopPropagation()}>
 
 <input
 style={styles.input}
@@ -81,7 +85,7 @@ onChange={e=>setRepo(e.target.value)}
 <select style={styles.input} value={model} onChange={e=>setModel(e.target.value)}>
 <option value="groq">Groq</option>
 <option value="openai">OpenAI</option>
-<option value="anthropic">Anthropic</option>
+<option value="anthropic">Claude</option>
 <option value="gemini">Gemini</option>
 </select>
 
@@ -94,10 +98,8 @@ onChange={e=>setRepo(e.target.value)}
 </div>
 )}
 
-{/* CHAT */}
-<div style={styles.chat}>
-
-<div style={styles.messages} ref={chatRef}>
+{/* CHAT AREA */}
+<div style={styles.chat} ref={chatRef}>
 
 {messages.map((m,i)=>(
 <div key={i} style={{
@@ -106,34 +108,7 @@ alignSelf: m.role==="user" ? "flex-end" : "flex-start",
 background: m.role==="user" ? "#4f7cff" : "#1f2937"
 }}>
 
-<ReactMarkdown
-components={{
-p: ({children}) => (
-<p style={{
-margin:0,
-wordBreak:"break-word"
-}}>
-{children}
-</p>
-),
-
-code: ({children}) => (
-<pre style={{
-background:"#0a0a0a",
-padding:10,
-borderRadius:8,
-overflowX:"auto",
-whiteSpace:"pre-wrap",
-wordBreak:"break-word",
-maxWidth:"100%"
-}}>
-<code>{children}</code>
-</pre>
-)
-}}
->
-{m.content}
-</ReactMarkdown>
+<ReactMarkdown>{m.content}</ReactMarkdown>
 
 </div>
 ))}
@@ -146,19 +121,19 @@ Typing...
 
 </div>
 
-{/* INPUT */}
+{/* INPUT BAR (WhatsApp style) */}
 <div style={styles.inputBar}>
+
 <input
 style={styles.chatInput}
 value={input}
 onChange={e=>setInput(e.target.value)}
-placeholder="Ask AI..."
+placeholder="Message AI agent..."
 />
 
-<button style={styles.button} onClick={sendMessage}>
+<button style={styles.sendBtn} onClick={sendMessage}>
 Send
 </button>
-</div>
 
 </div>
 
@@ -179,100 +154,94 @@ fontFamily:"system-ui"
 
 topBar:{
 display:"flex",
+justifyContent:"space-between",
 alignItems:"center",
-padding:10,
+padding:"12px 16px",
 background:"#0f172a",
-borderBottom:"1px solid #1f2937"
-},
-
-menuBtn:{
-fontSize:20,
-background:"transparent",
-border:"none",
-color:"white",
-marginRight:10
+borderBottom:"1px solid #1f2937",
+position:"sticky",
+top:0
 },
 
 title:{
-fontWeight:"bold"
+fontWeight:"bold",
+fontSize:16
 },
 
-overlay:{
-position:"fixed",
-top:0,
-left:0,
-right:0,
-bottom:0,
-background:"rgba(0,0,0,0.6)",
-zIndex:10
-},
-
-sidebar:{
-width:260,
-height:"100%",
-background:"#0f172a",
-padding:16
+settingsBtn:{
+background:"transparent",
+border:"none",
+color:"white",
+fontSize:18
 },
 
 chat:{
 flex:1,
-display:"flex",
-flexDirection:"column"
-},
-
-messages:{
-flex:1,
-padding:12,
 overflowY:"auto",
-overflowX:"hidden",
+padding:12,
 display:"flex",
 flexDirection:"column",
-gap:10,
-paddingBottom:90
+gap:10
 },
 
 msg:{
-maxWidth:"100%",
-width:"fit-content",
-wordBreak:"break-word",
-overflowWrap:"break-word",
+maxWidth:"80%",
 padding:10,
-borderRadius:10,
+borderRadius:12,
 fontSize:14,
-whiteSpace:"pre-wrap"
+whiteSpace:"pre-wrap",
+wordBreak:"break-word"
 },
 
 inputBar:{
 display:"flex",
 padding:10,
 borderTop:"1px solid #1f2937",
-background:"#0b0f17"
+background:"#0b0f17",
+paddingBottom:"calc(10px + env(safe-area-inset-bottom))"
 },
 
 chatInput:{
 flex:1,
-padding:10,
-borderRadius:8,
+padding:12,
+borderRadius:20,
 border:"1px solid #334155",
 background:"#111827",
-color:"white"
+color:"white",
+outline:"none"
 },
 
-button:{
+sendBtn:{
 marginLeft:8,
 padding:"10px 14px",
-borderRadius:8,
+borderRadius:20,
 border:"none",
 background:"#4f7cff",
 color:"white",
 fontWeight:"bold"
 },
 
+modal:{
+position:"fixed",
+inset:0,
+background:"rgba(0,0,0,0.6)",
+display:"flex",
+justifyContent:"center",
+alignItems:"center"
+},
+
+modalBox:{
+width:"85%",
+background:"#0f172a",
+padding:16,
+borderRadius:12
+},
+
 input:{
 width:"100%",
 padding:10,
 marginBottom:10,
-borderRadius:8,
+borderRadius:10,
 border:"1px solid #334155",
 background:"#111827",
 color:"white"
