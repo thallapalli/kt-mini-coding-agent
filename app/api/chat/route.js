@@ -3,6 +3,8 @@ import { getRepoTree } from "../../../lib/github"
 
 export async function POST(req) {
 
+try {
+
 const body = await req.json()
 
 const { message, model, mode, repo } = body
@@ -16,7 +18,6 @@ repoContext = await getRepoTree(repo)
 let prompt = message
 
 if (mode === "plan") {
-
 prompt = `
 You are a senior software engineer.
 
@@ -27,14 +28,21 @@ User request:
 ${message}
 
 Create a step-by-step plan.
-Be specific to this repo.
-Do NOT write code.
 `
-
 }
 
 const reply = await callLLM({ message: prompt, model })
 
-return Response.json({ reply })
+return Response.json({
+reply: reply || "No response from AI"
+})
+
+} catch (e) {
+
+return Response.json({
+reply: "ERROR: " + e.message
+})
+
+}
 
 }
