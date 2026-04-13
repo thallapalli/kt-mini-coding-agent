@@ -58,7 +58,7 @@ setLoading(false)
 return(
 <div style={styles.app}>
 
-{/* MOBILE TOP BAR */}
+{/* TOP BAR */}
 <div style={styles.topBar}>
 <button onClick={()=>setShowSidebar(!showSidebar)} style={styles.menuBtn}>
 ☰
@@ -66,9 +66,9 @@ return(
 <div style={styles.title}>AI Agent</div>
 </div>
 
-{/* SIDEBAR (drawer on mobile) */}
+{/* SIDEBAR DRAWER */}
 {showSidebar && (
-<div style={styles.sidebarOverlay} onClick={()=>setShowSidebar(false)}>
+<div style={styles.overlay} onClick={()=>setShowSidebar(false)}>
 <div style={styles.sidebar} onClick={e=>e.stopPropagation()}>
 
 <input
@@ -79,22 +79,22 @@ onChange={e=>setRepo(e.target.value)}
 />
 
 <select style={styles.input} value={model} onChange={e=>setModel(e.target.value)}>
-<option>groq</option>
-<option>openai</option>
-<option>anthropic</option>
-<option>gemini</option>
+<option value="groq">Groq</option>
+<option value="openai">OpenAI</option>
+<option value="anthropic">Anthropic</option>
+<option value="gemini">Gemini</option>
 </select>
 
 <select style={styles.input} value={mode} onChange={e=>setMode(e.target.value)}>
-<option>plan</option>
-<option>agent</option>
+<option value="plan">Plan</option>
+<option value="agent">Agent</option>
 </select>
 
 </div>
 </div>
 )}
 
-{/* CHAT AREA */}
+{/* CHAT */}
 <div style={styles.chat}>
 
 <div style={styles.messages} ref={chatRef}>
@@ -105,7 +105,36 @@ onChange={e=>setRepo(e.target.value)}
 alignSelf: m.role==="user" ? "flex-end" : "flex-start",
 background: m.role==="user" ? "#4f7cff" : "#1f2937"
 }}>
-<ReactMarkdown>{m.content}</ReactMarkdown>
+
+<ReactMarkdown
+components={{
+p: ({children}) => (
+<p style={{
+margin:0,
+wordBreak:"break-word"
+}}>
+{children}
+</p>
+),
+
+code: ({children}) => (
+<pre style={{
+background:"#0a0a0a",
+padding:10,
+borderRadius:8,
+overflowX:"auto",
+whiteSpace:"pre-wrap",
+wordBreak:"break-word",
+maxWidth:"100%"
+}}>
+<code>{children}</code>
+</pre>
+)
+}}
+>
+{m.content}
+</ReactMarkdown>
+
 </div>
 ))}
 
@@ -148,7 +177,6 @@ color:"white",
 fontFamily:"system-ui"
 },
 
-/* TOP BAR (mobile only) */
 topBar:{
 display:"flex",
 alignItems:"center",
@@ -169,8 +197,7 @@ title:{
 fontWeight:"bold"
 },
 
-/* SIDEBAR OVERLAY */
-sidebarOverlay:{
+overlay:{
 position:"fixed",
 top:0,
 left:0,
@@ -187,7 +214,6 @@ background:"#0f172a",
 padding:16
 },
 
-/* CHAT */
 chat:{
 flex:1,
 display:"flex",
@@ -198,13 +224,18 @@ messages:{
 flex:1,
 padding:12,
 overflowY:"auto",
+overflowX:"hidden",
 display:"flex",
 flexDirection:"column",
-gap:10
+gap:10,
+paddingBottom:90
 },
 
 msg:{
-maxWidth:"80%",
+maxWidth:"100%",
+width:"fit-content",
+wordBreak:"break-word",
+overflowWrap:"break-word",
 padding:10,
 borderRadius:10,
 fontSize:14,
