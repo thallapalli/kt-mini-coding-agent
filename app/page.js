@@ -1,5 +1,6 @@
 "use client"
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
+import ReactMarkdown from "react-markdown"
 
 export default function Home() {
 
@@ -8,30 +9,52 @@ const [input,setInput]=useState("")
 const [repo,setRepo]=useState("")
 const [model,setModel]=useState("groq")
 const [mode,setMode]=useState("plan")
+const [loading,setLoading]=useState(false)
+
+const chatRef = useRef(null)
+
+useEffect(()=>{
+if(chatRef.current){
+chatRef.current.scrollTop = chatRef.current.scrollHeight
+}
+},[messages,loading])
 
 async function sendMessage(){
 
 if(!input) return
 
+setLoading(true)
+
+const userMsg = input
+setInput("")
+
+setMessages(prev=>[
+...prev,
+{role:"user",content:userMsg}
+])
+
 const res = await fetch("/api/chat",{
 method:"POST",
 headers:{ "Content-Type":"application/json" },
-body:JSON.stringify({ message:input, repo, model, mode })
+body:JSON.stringify({
+message:userMsg,
+repo,
+model,
+mode
+})
 })
 
 const data = await res.json()
 
 setMessages(prev=>[
 ...prev,
-{role:"user",content:input},
 {role:"assistant",content:data.reply}
 ])
 
-setInput("")
+setLoading(false)
 }
 
 return(
-
 <div style={styles.app}>
 
 {/* Sidebar */}
@@ -39,58 +62,66 @@ return(
 
 <div style={styles.logo}>⚡ AI Agent</div>
 
-<div style={styles.section}>
-<div style={styles.label}>Repo</div>
-<input style={styles.input} value={repo} onChange={e=>setRepo(e.target.value)} placeholder="user/repo"/>
-</div>
+<input style={styles.input} placeholder="Repo (user/repo)" value={repo} onChange={e=>setRepo(e.target.value)} />
 
-<div style={styles.section}>
-<div style={styles.label}>Model</div>
 <select style={styles.input} value={model} onChange={e=>setModel(e.target.value)}>
-<option value="groq">Groq (Fast)</option>
-<option value="openai">OpenAI (Smart)</option>
-<option value="anthropic">Claude</option>
-<option value="gemini">Gemini</option>
+<option>groq</option>
+<option>openai</option>
+<option>anthropic</option>
+<option>gemini</option>
 </select>
-</div>
 
-<div style={styles.section}>
-<div style={styles.label}>Mode</div>
 <select style={styles.input} value={mode} onChange={e=>setMode(e.target.value)}>
-<option value="plan">Plan</option>
-<option value="agent">Agent</option>
+<option>plan</option>
+<option>agent</option>
 </select>
-</div>
-
-<div style={styles.hint}>
-Tip: Use Plan mode first
-</div>
 
 </div>
 
 {/* Chat */}
 <div style={styles.chat}>
 
-{/* messages */}
-<div style={styles.messages}>
+<div style={styles.messages} ref={chatRef}>
+
 {messages.map((m,i)=>(
 <div key={i} style={{
 ...styles.msg,
 alignSelf: m.role==="user" ? "flex-end" : "flex-start",
 background: m.role==="user" ? "#4f7cff" : "#1f2937"
 }}>
+
+<ReactMarkdown
+components={{
+code({children}) {
+return (
+<pre style={styles.code}>
+<code>{children}</code>
+</pre>
+)
+}
+}}
+>
 {m.content}
+</ReactMarkdown>
+
 </div>
 ))}
+
+{loading && (
+<div style={{...styles.msg,background:"#1f2937"}}>
+Typing...
+</div>
+)}
+
 </div>
 
-{/* input bar */}
+{/* input */}
 <div style={styles.inputBar}>
 <input
 style={styles.chatInput}
 value={input}
 onChange={e=>setInput(e.target.value)}
-placeholder="Ask your AI agent..."
+placeholder="Ask AI to code..."
 />
 
 <button style={styles.button} onClick={sendMessage}>
@@ -116,41 +147,25 @@ fontFamily:"system-ui"
 
 sidebar:{
 width:260,
+padding:16,
 background:"#0f172a",
-borderRight:"1px solid #1f2937",
-padding:16
+borderRight:"1px solid #1f2937"
 },
 
 logo:{
 fontSize:18,
 fontWeight:"bold",
-marginBottom:20
-},
-
-section:{
 marginBottom:16
-},
-
-label:{
-fontSize:12,
-opacity:0.7,
-marginBottom:6
 },
 
 input:{
 width:"100%",
 padding:10,
+marginBottom:10,
 borderRadius:8,
 border:"1px solid #334155",
 background:"#111827",
-color:"white",
-outline:"none"
-},
-
-hint:{
-fontSize:12,
-opacity:0.5,
-marginTop:20
+color:"white"
 },
 
 chat:{
@@ -162,25 +177,33 @@ flexDirection:"column"
 messages:{
 flex:1,
 padding:20,
+overflowY:"auto",
 display:"flex",
 flexDirection:"column",
-gap:10,
-overflowY:"auto"
+gap:10
 },
 
 msg:{
-maxWidth:"70%",
+maxWidth:"75%",
 padding:12,
 borderRadius:12,
 fontSize:14,
 whiteSpace:"pre-wrap"
 },
 
+code:{
+background:"#0a0a0a",
+padding:10,
+borderRadius:8,
+overflowX:"auto",
+fontSize:13
+},
+
 inputBar:{
 display:"flex",
 padding:12,
 borderTop:"1px solid #1f2937",
-background:"#0f0f10"
+background:"#0b0f17"
 },
 
 chatInput:{
@@ -189,8 +212,7 @@ padding:12,
 borderRadius:10,
 border:"1px solid #334155",
 background:"#111827",
-color:"white",
-outline:"none"
+color:"white"
 },
 
 button:{
@@ -200,8 +222,7 @@ borderRadius:10,
 border:"none",
 background:"#4f7cff",
 color:"white",
-fontWeight:"bold",
-cursor:"pointer"
+fontWeight:"bold"
 }
 
 }
