@@ -1,4 +1,5 @@
 import { callLLM } from "../../../lib/llm"
+import { getRepoTree } from "../../../lib/github"
 
 export async function POST(req) {
 
@@ -6,19 +7,30 @@ const body = await req.json()
 
 const { message, model, mode, repo } = body
 
+let repoContext = ""
+
+if (repo) {
+repoContext = await getRepoTree(repo)
+}
+
 let prompt = message
 
 if (mode === "plan") {
+
 prompt = `
-You are an expert coding agent.
+You are a senior software engineer.
 
-Analyze the repository: ${repo}
+Repository structure:
+${repoContext}
 
-User request: ${message}
+User request:
+${message}
 
 Create a step-by-step plan.
-DO NOT write code.
+Be specific to this repo.
+Do NOT write code.
 `
+
 }
 
 const reply = await callLLM({ message: prompt, model })
