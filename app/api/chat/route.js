@@ -1,18 +1,28 @@
-export async function POST(req){
+import { callLLM } from "../../../lib/llm"
+
+export async function POST(req) {
 
 const body = await req.json()
 
-const message = body.message
-const repo = body.repo
-const model = body.model
-const mode = body.mode
+const { message, model, mode, repo } = body
 
-return Response.json({
-reply:`Mode:${mode}
-Model:${model}
-Repo:${repo}
+let prompt = message
 
-You said: ${message}`
-})
+if (mode === "plan") {
+prompt = `
+You are an expert coding agent.
+
+Analyze the repository: ${repo}
+
+User request: ${message}
+
+Create a step-by-step plan.
+DO NOT write code.
+`
+}
+
+const reply = await callLLM({ message: prompt, model })
+
+return Response.json({ reply })
 
 }
