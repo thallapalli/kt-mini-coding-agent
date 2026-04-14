@@ -1,24 +1,41 @@
 import { runAgent } from "@/lib/agent/runner";
 
 export async function POST(req) {
-  try {
-    const { repoUrl, prompt, apiKey } = await req.json();
+  const { repoUrl, prompt, apiKey } = await req.json();
 
-    if (!repoUrl || !prompt || !apiKey) {
-      return Response.json({ error: "Missing fields" }, { status: 400 });
-    }
+  const encoder = new TextEncoder();
 
-    const result = await runAgent({
-      repoUrl,
-      prompt,
-      apiKey,
-    });
+  const stream = new ReadableStream({
+    async start(controller) {
+      const send = (msg) => {
+        controller.enqueue(encoder.encode(msg + "\n"));
+      };
 
-    return Response.json({ success: true, result });
-  } catch (err) {
-    return Response.json(
-      { success: false, error: err.message },
-      { status: 500 }
-    );
-  }
+      try {
+        send("🚀 Starting agent...");
+
+        send("📦 Cloning repo...");
+        const result = await runAgent({
+          repoUrl,
+          prompt,
+          apiKey,
+          onProgress: send,
+        });
+
+        send("✅ Done!");
+        send("RESULT:" + JSON.stringify(result));
+
+        controller.close();
+      } catch (err) {
+        send("❌ Error: " + err.message);
+        controller.close();
+      }
+    },
+  });
+
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "text/plain; charset=utf-8",
+    },
+  });
 }
