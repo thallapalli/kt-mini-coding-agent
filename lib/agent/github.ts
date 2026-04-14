@@ -1,15 +1,26 @@
-import simpleGit from "simple-git";
+export async function cloneRepo(repoUrl: string, repoPath: string) {
+  // ❌ DO NOT use git clone or child_process in Vercel
+  // Vercel runtime will crash with ChildProcess errors
 
-export async function cloneRepo(repoUrl: string, path: string) {
-  const git = simpleGit();
+  console.log("📦 Mock clone repo:", repoUrl);
+  console.log("📁 Target path:", repoPath);
 
-  await git.clone(repoUrl, path);
+  return {
+    success: true,
+    repoUrl,
+    repoPath,
+  };
 }
 
 export async function commitAndPush(repoPath: string, message: string) {
-  const git = simpleGit(repoPath);
+  // ❌ No git CLI in serverless
 
-  await git.add(".");
-  await git.commit(`AI AGENT: ${message}`);
-  await git.push();
+  console.log("📤 Mock commit & push");
+  console.log("📁 Path:", repoPath);
+  console.log("💬 Message:", message);
+
+  return {
+    success: true,
+    message,
+  };
 }
