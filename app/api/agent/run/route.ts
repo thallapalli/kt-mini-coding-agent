@@ -1,4 +1,4 @@
-import { runAgent } from "@/lib/agent/runner";
+import { runAgent } from "../../../../lib/agent/runner";
 
 export async function POST(req: Request) {
   const { repoUrl, prompt, apiKey } = await req.json();
