@@ -1,9 +1,10 @@
 export async function cloneRepo(repoUrl: string, repoPath: string) {
-  // ❌ DO NOT use git clone or child_process in Vercel
-  // Vercel runtime will crash with ChildProcess errors
+  // 🚫 Vercel-safe mock (no git CLI allowed)
 
   console.log("📦 Mock clone repo:", repoUrl);
   console.log("📁 Target path:", repoPath);
+
+  // 👉 future: replace with GitHub API download zip
 
   return {
     success: true,
@@ -13,7 +14,7 @@ export async function cloneRepo(repoUrl: string, repoPath: string) {
 }
 
 export async function commitAndPush(repoPath: string, message: string) {
-  // ❌ No git CLI in serverless
+  // 🚫 Vercel-safe mock
 
   console.log("📤 Mock commit & push");
   console.log("📁 Path:", repoPath);
