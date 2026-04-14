@@ -1,50 +1,64 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { MODEL_CONFIG } from "@/lib/agent/models";
+import { useState } from "react";
 
 export default function Home() {
   const [repoUrl, setRepoUrl] = useState("");
   const [prompt, setPrompt] = useState("");
-
   const [provider, setProvider] = useState("groq");
-  const [model, setModel] = useState(MODEL_CONFIG.groq[0]);
-  const [apiKey, setApiKey] = useState("");
+  const [model, setModel] = useState("llama-3.1-8b-instant");
 
+  const [output, setOutput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [logs, setLogs] = useState([]);
 
-  useEffect(() => {
-    setModel(MODEL_CONFIG[provider][0]);
-  }, [provider]);
+  const models = {
+    groq: ["llama-3.1-8b-instant"],
+    openai: ["gpt-4o-mini"],
+    gemini: ["gemini-1.5-flash"],
+    claude: ["claude-3-haiku-20240307"],
+  };
 
-  const runAgent = async () => {
+  async function runAgent() {
     setLoading(true);
-    setLogs([]);
+    setOutput("");
 
     const res = await fetch("/api/agent/run", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         repoUrl,
         prompt,
-        llmConfig: {
-          provider,
-          model,
-          apiKey,
-        },
+        provider,
+        model,
       }),
     });
 
-    const data = await res.json();
-    setLogs([JSON.stringify(data, null, 2)]);
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+
+    let done = false;
+
+    while (!done) {
+      const { value, done: doneReading } = await reader.read();
+      done = doneReading;
+
+      if (value) {
+        const chunk = decoder.decode(value);
+        setOutput((prev) => prev + chunk);
+
+        if (chunk.includes("RESULT:")) {
+          setLoading(false);
+        }
+      }
+    }
+
     setLoading(false);
-  };
+  }
 
   return (
     <div style={styles.container}>
-      <h1 style={styles.title}>⚡ Mini Coding Agent</h1>
+      <h2 style={styles.title}>⚡ Mini Coding Agent</h2>
 
+      {/* Repo */}
       <input
         style={styles.input}
         placeholder="GitHub Repo URL"
@@ -52,65 +66,60 @@ export default function Home() {
         onChange={(e) => setRepoUrl(e.target.value)}
       />
 
+      {/* Prompt */}
       <textarea
         style={styles.textarea}
-        placeholder="Describe your change..."
+        placeholder="What do you want to change?"
         value={prompt}
         onChange={(e) => setPrompt(e.target.value)}
       />
 
-      {/* PROVIDER SELECT */}
-      <select
-        style={styles.input}
-        value={provider}
-        onChange={(e) => setProvider(e.target.value)}
-      >
-        <option value="groq">Groq</option>
-        <option value="openai">OpenAI</option>
-        <option value="gemini">Gemini</option>
-        <option value="claude">Claude</option>
-      </select>
+      {/* Provider + Model */}
+      <div style={styles.row}>
+        <select
+          style={styles.select}
+          value={provider}
+          onChange={(e) => {
+            const p = e.target.value;
+            setProvider(p);
+            setModel(models[p][0]);
+          }}
+        >
+          <option value="groq">Groq</option>
+          <option value="openai">OpenAI</option>
+          <option value="gemini">Gemini</option>
+          <option value="claude">Claude</option>
+        </select>
 
-      {/* MODEL SELECT */}
-      <select
-        style={styles.input}
-        value={model}
-        onChange={(e) => setModel(e.target.value)}
-      >
-        {MODEL_CONFIG[provider].map((m) => (
-          <option key={m} value={m}>
-            {m}
-          </option>
-        ))}
-      </select>
+        <select
+          style={styles.select}
+          value={model}
+          onChange={(e) => setModel(e.target.value)}
+        >
+          {models[provider].map((m) => (
+            <option key={m}>{m}</option>
+          ))}
+        </select>
+      </div>
 
-      {/* API KEY */}
-      <input
-        style={styles.input}
-        placeholder="API Key"
-        type="password"
-        value={apiKey}
-        onChange={(e) => setApiKey(e.target.value)}
-      />
-
+      {/* Run Button */}
       <button style={styles.button} onClick={runAgent} disabled={loading}>
-        {loading ? "Running..." : "Run Agent 🚀"}
+        {loading ? "Running..." : "Run Agent"}
       </button>
 
-      <div style={styles.output}>
-        {logs.map((l, i) => (
-          <pre key={i}>{l}</pre>
-        ))}
-      </div>
+      {/* Output */}
+      <pre style={styles.output}>{output}</pre>
     </div>
   );
 }
 
+/* ---------------- STYLES ---------------- */
+
 const styles = {
   container: {
+    padding: 16,
     maxWidth: 600,
-    margin: "0 auto",
-    padding: 20,
+    margin: "auto",
     fontFamily: "sans-serif",
   },
   title: {
@@ -119,33 +128,38 @@ const styles = {
   input: {
     width: "100%",
     padding: 10,
-    marginTop: 10,
-    borderRadius: 8,
-    border: "1px solid #ccc",
+    marginBottom: 10,
   },
   textarea: {
     width: "100%",
-    height: 120,
+    height: 100,
     padding: 10,
-    marginTop: 10,
-    borderRadius: 8,
+    marginBottom: 10,
+  },
+  row: {
+    display: "flex",
+    gap: 10,
+    marginBottom: 10,
+  },
+  select: {
+    flex: 1,
+    padding: 10,
   },
   button: {
     width: "100%",
     padding: 12,
-    marginTop: 15,
-    background: "black",
-    color: "white",
-    borderRadius: 8,
+    background: "#000",
+    color: "#fff",
+    border: "none",
     cursor: "pointer",
   },
   output: {
     marginTop: 20,
+    padding: 10,
     background: "#111",
     color: "#0f0",
-    padding: 10,
-    borderRadius: 8,
-    fontSize: 12,
-    overflowX: "auto",
+    height: 300,
+    overflow: "auto",
+    whiteSpace: "pre-wrap",
   },
 };
