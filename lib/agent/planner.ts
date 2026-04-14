@@ -1,4 +1,4 @@
-import { askLLM } from "../llm";
+import { askLLM } from "./llm";
 
 export async function createPlan(prompt, context, llmConfig) {
   const llmPrompt = `
