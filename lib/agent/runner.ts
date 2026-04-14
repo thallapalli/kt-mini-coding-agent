@@ -16,41 +16,39 @@ export async function runAgent({
   apiKey,
   onProgress,
 }: RunAgentInput) {
-  // unique working directory (Vercel-safe temp usage)
+  // ⚠️ Vercel-safe temp directory
   const repoPath = `/tmp/repo-${Date.now()}`;
 
   try {
-    // STEP 1: Clone repo
-    onProgress?.("📦 Cloning repository...");
+    onProgress?.("📦 Cloning repo...");
+
     await cloneRepo(repoUrl, repoPath);
 
-    // STEP 2: Read repo structure
-    onProgress?.("📚 Reading repository files...");
+    onProgress?.("📚 Building repo context...");
+
     const context = await buildRepoContext(repoPath);
 
-    // STEP 3: Create AI plan
-    onProgress?.("🧠 Generating plan...");
+    onProgress?.("🧠 Creating AI plan...");
+
     const plan = await createPlan(prompt, context, apiKey);
 
-    // STEP 4: Apply changes
     onProgress?.("✏️ Applying changes...");
+
     await applyPlan(plan, repoPath, apiKey);
 
-    // STEP 5: Commit changes
     onProgress?.("📤 Committing changes...");
+
     await commitAndPush(repoPath, prompt);
 
-    // DONE
-    onProgress?.("✅ Completed successfully");
+    onProgress?.("✅ Done");
 
     return {
       success: true,
-      repoPath,
+      message: "Agent completed successfully",
       plan,
-      message: "Agent finished execution",
     };
   } catch (error: any) {
-    onProgress?.("❌ Error: " + error.message);
+    onProgress?.("❌ Failed: " + error.message);
 
     return {
       success: false,
