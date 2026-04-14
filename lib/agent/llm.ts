@@ -1,6 +1,9 @@
-export type Provider = "groq" | "openai" | "gemini" | "claude";
+import { Provider } from "./types";
 
-async function askLLM(
+/**
+ * MAIN ENTRY
+ */
+export async function askLLM(
   prompt: string,
   apiKey: string,
   provider: Provider,
@@ -29,17 +32,10 @@ async function askLLM(
       throw new Error("Unsupported provider: " + provider);
   }
 
-  if (!result || result.trim().length === 0) {
-    throw new Error(`${provider} returned empty response`);
-  }
-
-  return result;
+  return (result || "").trim();
 }
 
-export { askLLM }; // ✅ EXPLICIT EXPORT (IMPORTANT FIX)
-
-/* ================= SAFE FETCH ================= */
-
+/* ---------------- SAFE FETCH ---------------- */
 async function safeFetch(url: string, options: any) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 45000);
@@ -61,8 +57,7 @@ async function safeFetch(url: string, options: any) {
 
     if (!res.ok) {
       throw new Error(
-        data?.error?.message ||
-          `HTTP ${res.status}: ${JSON.stringify(data)}`
+        data?.error?.message || `HTTP ${res.status}: ${text}`
       );
     }
 
@@ -72,8 +67,7 @@ async function safeFetch(url: string, options: any) {
   }
 }
 
-/* ================= GROQ ================= */
-
+/* ---------------- GROQ ---------------- */
 async function callGroq(prompt: string, apiKey: string, model: string) {
   const data = await safeFetch(
     "https://api.groq.com/openai/v1/chat/completions",
@@ -94,8 +88,7 @@ async function callGroq(prompt: string, apiKey: string, model: string) {
   return data?.choices?.[0]?.message?.content || "";
 }
 
-/* ================= OPENAI ================= */
-
+/* ---------------- OPENAI ---------------- */
 async function callOpenAI(prompt: string, apiKey: string, model: string) {
   const data = await safeFetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
@@ -113,8 +106,7 @@ async function callOpenAI(prompt: string, apiKey: string, model: string) {
   return data?.choices?.[0]?.message?.content || "";
 }
 
-/* ================= GEMINI ================= */
-
+/* ---------------- GEMINI ---------------- */
 async function callGemini(prompt: string, apiKey: string, model: string) {
   const data = await safeFetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${
@@ -132,8 +124,7 @@ async function callGemini(prompt: string, apiKey: string, model: string) {
   return data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
 }
 
-/* ================= CLAUDE ================= */
-
+/* ---------------- CLAUDE ---------------- */
 async function callClaude(prompt: string, apiKey: string, model: string) {
   const data = await safeFetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
@@ -145,7 +136,6 @@ async function callClaude(prompt: string, apiKey: string, model: string) {
     body: JSON.stringify({
       model: model || "claude-3-haiku-20240307",
       max_tokens: 1024,
-      temperature: 0.2,
       messages: [{ role: "user", content: prompt }],
     }),
   });
