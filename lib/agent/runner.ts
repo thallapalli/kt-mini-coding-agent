@@ -6,49 +6,66 @@ import { applyPlan } from "./executor";
 type RunAgentInput = {
   repoUrl: string;
   prompt: string;
-  apiKey: string;
+
+  llmConfig: {
+    provider: "groq" | "openai" | "gemini" | "claude";
+    model: string;
+    apiKey: string;
+  };
+
   onProgress?: (msg: string) => void;
 };
 
 export async function runAgent({
   repoUrl,
   prompt,
-  apiKey,
+  llmConfig,
   onProgress,
 }: RunAgentInput) {
   // ⚠️ Vercel-safe temp directory
   const repoPath = `/tmp/repo-${Date.now()}`;
 
   try {
-    onProgress?.("📦 Cloning repo...");
-
+    // STEP 1: Clone repo
+    onProgress?.("📦 Cloning repository...");
     await cloneRepo(repoUrl, repoPath);
 
-    onProgress?.("📚 Building repo context...");
-
+    // STEP 2: Build repo context
+    onProgress?.("📚 Reading repository files...");
     const context = await buildRepoContext(repoPath);
 
-    onProgress?.("🧠 Creating AI plan...");
+    // STEP 3: Create AI plan (multi-LLM support)
+    onProgress?.(
+      `🧠 Generating plan using ${llmConfig.provider} / ${llmConfig.model}...`
+    );
 
-    const plan = await createPlan(prompt, context, apiKey);
+    const plan = await createPlan(
+      prompt,
+      context,
+      llmConfig.apiKey,
+      llmConfig.provider,
+      llmConfig.model
+    );
 
+    // STEP 4: Apply changes
     onProgress?.("✏️ Applying changes...");
+    await applyPlan(plan, repoPath, llmConfig.apiKey);
 
-    await applyPlan(plan, repoPath, apiKey);
-
+    // STEP 5: Commit changes
     onProgress?.("📤 Committing changes...");
-
     await commitAndPush(repoPath, prompt);
 
-    onProgress?.("✅ Done");
+    // DONE
+    onProgress?.("✅ Completed successfully");
 
     return {
       success: true,
-      message: "Agent completed successfully",
+      repoPath,
       plan,
+      message: "Agent finished execution",
     };
   } catch (error: any) {
-    onProgress?.("❌ Failed: " + error.message);
+    onProgress?.("❌ Error: " + error.message);
 
     return {
       success: false,
