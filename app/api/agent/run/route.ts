@@ -1,54 +1,70 @@
 import { runAgent } from "@/lib/agent/runner";
 
 export async function POST(req: Request) {
-  const { repoUrl, prompt } = await req.json();
+  const { repoUrl, prompt, provider, model } = await req.json();
 
   const encoder = new TextEncoder();
 
-  const stream = new ReadableStream({
-    async start(controller) {
-      const send = (msg: string) => {
-        controller.enqueue(encoder.encode(msg + "\n"));
-      };
+  return new Response(
+    new ReadableStream({
+      async start(controller) {
+        const send = (msg: string) => {
+          controller.enqueue(encoder.encode(msg + "\n"));
+        };
 
-      try {
-        send("🚀 Starting agent...");
+        const safeClose = () => {
+          try {
+            controller.close();
+          } catch {}
+        };
 
-        const apiKey = process.env.GROQ_API_KEY;
+        try {
+          send("🚀 Starting agent...");
 
-        if (!apiKey) {
-          send("❌ Missing GROQ_API_KEY");
-          controller.close();
-          return;
+          // pick correct API key based on provider
+          let apiKey = "";
+          if (provider === "openai") apiKey = process.env.OPENAI_API_KEY || "";
+          else if (provider === "gemini") apiKey = process.env.GEMINI_API_KEY || "";
+          else if (provider === "claude") apiKey = process.env.CLAUDE_API_KEY || "";
+          else apiKey = process.env.GROQ_API_KEY || "";
+
+          if (!apiKey) {
+            send("❌ Missing API key");
+            safeClose();
+            return;
+          }
+
+          // ⏱ timeout protection
+          const timeout = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error("Agent timeout (60s)")), 60000)
+          );
+
+          const task = runAgent({
+            repoUrl,
+            prompt,
+            llmConfig: {
+              provider: provider || "groq",
+              model: model || "llama-3.1-8b-instant",
+              apiKey,
+            },
+            onProgress: send,
+          });
+
+          const result = await Promise.race([task, timeout]);
+
+          send("🎉 Done");
+          send("RESULT:" + JSON.stringify(result));
+        } catch (err: any) {
+          send("❌ Error: " + err.message);
+        } finally {
+          safeClose();
         }
-
-        send("📦 Running agent...");
-
-        const result = await runAgent({
-          repoUrl,
-          prompt,
-          llmConfig: {
-            provider: "groq",
-            model: "llama-3.1-70b-versatile",
-            apiKey,
-          },
-          onProgress: send,
-        });
-
-        send("🎉 Done");
-        send("RESULT:" + JSON.stringify(result));
-
-        controller.close();
-      } catch (err: any) {
-        send("❌ Error: " + err.message);
-        controller.close();
-      }
-    },
-  });
-
-  return new Response(stream, {
-    headers: {
-      "Content-Type": "text/plain; charset=utf-8",
-    },
-  });
+      },
+    }),
+    {
+      headers: {
+        "Content-Type": "text/plain; charset=utf-8",
+      },
+    }
+  );
 }
