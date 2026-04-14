@@ -4,7 +4,6 @@ import { useState } from "react";
 
 export default function Page() {
   const [repoUrl, setRepoUrl] = useState("");
-  const [apiKey, setApiKey] = useState("");
   const [prompt, setPrompt] = useState("");
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -12,33 +11,42 @@ export default function Page() {
 
   async function runAgent() {
     setLoading(true);
+    setMessages([]);
+
     setStatus("running agent...");
 
-    setMessages((m) => [...m, { role: "user", text: prompt }]);
+    const res = await fetch("/api/agent/run", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        repoUrl,
+        prompt,
+      }),
+    });
 
-    try {
-      const res = await fetch("/api/agent/run", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ repoUrl, apiKey, prompt }),
-      });
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
 
-      const data = await res.json();
+    let buffer = "";
 
-      setMessages((m) => [
-        ...m,
-        {
-          role: "assistant",
-          text: JSON.stringify(data.result, null, 2),
-        },
-      ]);
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
 
-      setStatus("done");
-    } catch (e) {
-      setStatus("error");
+      buffer += decoder.decode(value);
+
+      const lines = buffer.split("\n");
+      buffer = lines.pop();
+
+      for (const line of lines) {
+        if (!line) continue;
+
+        setMessages((m) => [...m, { role: "system", text: line }]);
+      }
     }
 
     setLoading(false);
+    setStatus("done");
   }
 
   return (
@@ -48,35 +56,37 @@ export default function Page() {
       <p>Status: {status}</p>
 
       <input
-        placeholder="Repo URL"
+        placeholder="GitHub Repo URL"
         value={repoUrl}
         onChange={(e) => setRepoUrl(e.target.value)}
-        style={{ display: "block", marginBottom: 10 }}
-      />
-
-      <input
-        placeholder="API Key"
-        value={apiKey}
-        onChange={(e) => setApiKey(e.target.value)}
-        style={{ display: "block", marginBottom: 10 }}
+        style={{ display: "block", marginBottom: 10, width: "100%" }}
       />
 
       <textarea
-        placeholder="Prompt"
+        placeholder="What should the agent do?"
         value={prompt}
         onChange={(e) => setPrompt(e.target.value)}
-        style={{ display: "block", marginBottom: 10, height: 120 }}
+        style={{ display: "block", marginBottom: 10, width: "100%", height: 120 }}
       />
 
       <button onClick={runAgent} disabled={loading}>
-        {loading ? "Running..." : "Run Agent"}
+        {loading ? "Running Agent..." : "Run Agent 🚀"}
       </button>
 
       <hr />
 
       {messages.map((m, i) => (
-        <pre key={i} style={{ background: "#111", color: "#0f0", padding: 10 }}>
-          {m.role}: {m.text}
+        <pre
+          key={i}
+          style={{
+            background: "#111",
+            color: "#0f0",
+            padding: 10,
+            borderRadius: 6,
+            whiteSpace: "pre-wrap",
+          }}
+        >
+          {m.text}
         </pre>
       ))}
     </div>
