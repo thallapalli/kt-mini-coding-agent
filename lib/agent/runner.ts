@@ -1,4 +1,5 @@
 import { cloneRepo, commitAndPush } from "./github";
+import { buildRepoContext } from "./context";
 import { createPlan } from "./planner";
 import { applyPlan } from "./executor";
 
@@ -15,32 +16,44 @@ type RunAgentInput = {
   onProgress?: (msg: string) => void;
 };
 
+function trimContext(context: any, maxFiles = 8) {
+  if (!context?.files) return context;
+
+  return {
+    ...context,
+    files: context.files
+      .slice(0, maxFiles)
+      .map((f: any) => ({
+        path: f.path,
+        content: (f.content || "").slice(0, 800), // VERY IMPORTANT
+      })),
+  };
+}
+
 export async function runAgent({
   repoUrl,
   prompt,
   llmConfig,
   onProgress,
 }: RunAgentInput) {
-  // Vercel-safe temp path (not really used now but kept for compatibility)
   const repoPath = `/tmp/repo-${Date.now()}`;
 
   try {
-    // ✅ STEP 1: Fetch repo via GitHub API (NOT mock anymore)
-    onProgress?.("📦 Fetching repo from GitHub...");
-    const repoData = await cloneRepo(repoUrl, repoPath);
+    onProgress?.("📦 Cloning repo...");
+    await cloneRepo(repoUrl, repoPath);
 
-    const context = {
-      files: repoData.files || [],
-    };
+    onProgress?.("📚 Building repo context...");
+    let context = await buildRepoContext(repoPath);
 
-    if (!context.files || context.files.length === 0) {
-      throw new Error("No files found in repository");
+    // 🔥 FIX: reduce token explosion
+    context = trimContext(context, 6);
+
+    if (!context?.files?.length) {
+      onProgress?.("⚠️ No files found in repo (mock mode likely)");
     }
 
-    onProgress?.(`📚 Loaded ${context.files.length} files`);
-
-    // ✅ STEP 2: Create plan using LLM
     onProgress?.("🧠 Creating AI plan...");
+
     const plan = await createPlan(
       prompt,
       context,
@@ -53,10 +66,8 @@ export async function runAgent({
       throw new Error("LLM returned empty plan");
     }
 
-    onProgress?.(`📝 Plan created with ${plan.length} steps`);
-
-    // ✅ STEP 3: Apply changes (still simulated for now)
     onProgress?.("✏️ Applying changes...");
+
     await applyPlan(
       plan,
       repoPath,
@@ -65,17 +76,14 @@ export async function runAgent({
       llmConfig.model
     );
 
-    // ✅ STEP 4: Commit (mock)
     onProgress?.("📤 Committing changes...");
     await commitAndPush(repoPath, prompt);
 
-    // DONE
     onProgress?.("✅ Done");
 
     return {
       success: true,
       message: "Agent completed successfully",
-      filesAnalyzed: context.files.length,
       plan,
     };
   } catch (error: any) {
