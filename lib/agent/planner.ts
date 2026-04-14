@@ -1,17 +1,19 @@
 import { askLLM } from "./llm";
 
-function safeJsonParse(text: string) {
+function extractJSON(text: string) {
   try {
     return JSON.parse(text);
-  } catch {
-    const match = text.match(/\[.*\]/s);
-    if (match) {
-      try {
-        return JSON.parse(match[0]);
-      } catch {}
-    }
-    return null;
+  } catch {}
+
+  // 🔥 fallback: extract JSON block
+  const match = text.match(/\[[\s\S]*\]/);
+  if (match) {
+    try {
+      return JSON.parse(match[0]);
+    } catch {}
   }
+
+  return null;
 }
 
 export async function createPlan(
@@ -21,25 +23,31 @@ export async function createPlan(
   provider: string,
   model: string
 ) {
-  const safeContext = {
-    files: (context?.files || []).slice(0, 6),
+  const trimmed = {
+    files: (context?.files || []).slice(0, 5),
   };
 
   const llmPrompt = `
-You are a senior software engineer AI agent.
+You are a STRICT JSON generator.
+
+RULES:
+- Output ONLY valid JSON
+- NO explanation
+- NO markdown
+- NO text before or after
 
 TASK:
 ${prompt}
 
-REPO FILES (TRIMMED):
-${JSON.stringify(safeContext, null, 2)}
+FILES:
+${JSON.stringify(trimmed)}
 
-Return ONLY valid JSON array:
+OUTPUT FORMAT:
 [
   {
     "file": "path",
     "action": "edit",
-    "instruction": "what to change"
+    "instruction": "what to do"
   }
 ]
 `;
@@ -50,10 +58,10 @@ Return ONLY valid JSON array:
     throw new Error("Empty LLM response");
   }
 
-  const parsed = safeJsonParse(res);
+  const parsed = extractJSON(res);
 
   if (!parsed) {
-    throw new Error("Invalid JSON from LLM: " + res.slice(0, 200));
+    throw new Error("Invalid JSON from LLM: " + res.slice(0, 300));
   }
 
   return parsed;
