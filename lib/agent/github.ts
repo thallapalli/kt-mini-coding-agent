@@ -1,7 +1,6 @@
 export async function cloneRepo(repoUrl: string, repoPath: string) {
   console.log("📦 Fetching repo via GitHub API...");
 
-  // extract owner/repo
   const match = repoUrl.match(/github.com\/(.*?)\/(.*?)(\.git)?$/);
 
   if (!match) {
@@ -11,7 +10,6 @@ export async function cloneRepo(repoUrl: string, repoPath: string) {
   const owner = match[1];
   const repo = match[2];
 
-  // fetch repo tree
   const res = await fetch(
     `https://api.github.com/repos/${owner}/${repo}/git/trees/main?recursive=1`
   );
@@ -22,7 +20,6 @@ export async function cloneRepo(repoUrl: string, repoPath: string) {
     throw new Error("Failed to fetch repo tree");
   }
 
-  // fetch files content
   const files: any[] = [];
 
   for (const item of data.tree) {
@@ -48,6 +45,22 @@ export async function cloneRepo(repoUrl: string, repoPath: string) {
   return {
     success: true,
     repoUrl,
+    repoPath,
     files,
+  };
+}
+
+/**
+ * ⚠️ Vercel limitation:
+ * No real git push allowed in serverless
+ */
+export async function commitAndPush(repoPath: string, message: string) {
+  console.log("📤 Mock commit & push");
+  console.log("📁 Path:", repoPath);
+  console.log("💬 Message:", message);
+
+  return {
+    success: true,
+    message,
   };
 }
