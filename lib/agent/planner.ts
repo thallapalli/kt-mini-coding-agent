@@ -10,16 +10,13 @@ export async function createPlan(
   const llmPrompt = `
 You are a senior software engineer AI agent.
 
-Provider: ${provider}
-Model: ${model}
-
 User task:
 ${prompt}
 
 Repo files:
 ${JSON.stringify(context.files, null, 2)}
 
-Return ONLY JSON:
+Return ONLY valid JSON array:
 [
   {
     "file": "path",
