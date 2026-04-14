@@ -1,4 +1,4 @@
-type Provider = "groq" | "openai" | "gemini" | "claude";
+import { Provider } from "./types";
 
 /**
  * MAIN ENTRY
