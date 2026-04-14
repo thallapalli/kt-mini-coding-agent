@@ -12,7 +12,7 @@ export async function askLLM(prompt: string, apiKey: string) {
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: "llama3-70b-8192",
+        model: "llama-3.1-70b-versatile",
         messages: [{ role: "user", content: prompt }],
         temperature: 0.2,
       }),
