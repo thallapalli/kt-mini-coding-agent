@@ -1,7 +1,7 @@
-import { runAgent } from "../../../../lib/agent/runner";
+import { runAgent } from "@/lib/agent/runner";
 
 export async function POST(req: Request) {
-  const { repoUrl, prompt, apiKey } = await req.json();
+  const { repoUrl, prompt } = await req.json();
 
   const encoder = new TextEncoder();
 
@@ -13,6 +13,17 @@ export async function POST(req: Request) {
 
       try {
         send("🚀 Starting agent...");
+
+        // ✅ GET KEY FROM ENV (IMPORTANT FIX)
+        const apiKey = process.env.GROQ_API_KEY;
+
+        if (!apiKey) {
+          send("❌ Missing GROQ_API_KEY in environment variables");
+          controller.close();
+          return;
+        }
+
+        send("📦 Running agent...");
 
         const result = await runAgent({
           repoUrl,
@@ -34,7 +45,7 @@ export async function POST(req: Request) {
 
   return new Response(stream, {
     headers: {
-      "Content-Type": "text/plain",
+      "Content-Type": "text/plain; charset=utf-8",
     },
   });
 }
