@@ -1,5 +1,19 @@
 import { askLLM } from "./llm";
 
+function safeJsonParse(text: string) {
+  try {
+    return JSON.parse(text);
+  } catch {
+    const match = text.match(/\[.*\]/s);
+    if (match) {
+      try {
+        return JSON.parse(match[0]);
+      } catch {}
+    }
+    return null;
+  }
+}
+
 export async function createPlan(
   prompt: string,
   context: any,
@@ -7,57 +21,40 @@ export async function createPlan(
   provider: string,
   model: string
 ) {
+  const safeContext = {
+    files: (context?.files || []).slice(0, 6),
+  };
+
   const llmPrompt = `
-You are an AI coding agent.
+You are a senior software engineer AI agent.
 
-STRICT RULES:
-- Return ONLY valid JSON
-- NO explanations
-- NO text before or after
-- NO markdown
-- NO comments
+TASK:
+${prompt}
 
-Format:
+REPO FILES (TRIMMED):
+${JSON.stringify(safeContext, null, 2)}
+
+Return ONLY valid JSON array:
 [
   {
-    "file": "path/to/file",
+    "file": "path",
     "action": "edit",
     "instruction": "what to change"
   }
 ]
-
-User request:
-${prompt}
-
-Repo files:
-${JSON.stringify(context.files.slice(0, 20), null, 2)}
 `;
 
-  const raw = await askLLM(llmPrompt, apiKey, provider, model);
+  const res = await askLLM(llmPrompt, apiKey, provider, model);
 
-  if (!raw || raw.trim().length === 0) {
+  if (!res || res.trim().length === 0) {
     throw new Error("Empty LLM response");
   }
 
-  // 🔥 CLEAN RESPONSE (VERY IMPORTANT)
-  let cleaned = raw.trim();
+  const parsed = safeJsonParse(res);
 
-  // remove markdown ```
-  cleaned = cleaned.replace(/```json/g, "").replace(/```/g, "");
-
-  // extract JSON array if extra text exists
-  const start = cleaned.indexOf("[");
-  const end = cleaned.lastIndexOf("]");
-
-  if (start !== -1 && end !== -1) {
-    cleaned = cleaned.substring(start, end + 1);
+  if (!parsed) {
+    throw new Error("Invalid JSON from LLM: " + res.slice(0, 200));
   }
 
-  try {
-    return JSON.parse(cleaned);
-  } catch (err) {
-    console.error("❌ RAW LLM RESPONSE:", raw);
-
-    throw new Error("Invalid JSON from LLM:\n" + cleaned);
-  }
+  return parsed;
 }
