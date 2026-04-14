@@ -1,6 +1,6 @@
 import fs from "fs";
 import path from "path";
-import { askLLM } from "../llm";
+import { askLLM } from "./llm";
 
 export async function applyPlan(plan, repoPath, llmConfig) {
   for (const item of plan) {
