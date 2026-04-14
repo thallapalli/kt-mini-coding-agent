@@ -1,5 +1,4 @@
 import { cloneRepo, commitAndPush } from "./github";
-import { buildRepoContext } from "./context";
 import { createPlan } from "./planner";
 import { applyPlan } from "./executor";
 
@@ -22,23 +21,25 @@ export async function runAgent({
   llmConfig,
   onProgress,
 }: RunAgentInput) {
-  // ✅ Vercel-safe temp path
+  // Vercel-safe temp path (not really used now but kept for compatibility)
   const repoPath = `/tmp/repo-${Date.now()}`;
 
   try {
-    // STEP 1: Clone repo (mock or real)
-    onProgress?.("📦 Cloning repo...");
-    await cloneRepo(repoUrl, repoPath);
+    // ✅ STEP 1: Fetch repo via GitHub API (NOT mock anymore)
+    onProgress?.("📦 Fetching repo from GitHub...");
+    const repoData = await cloneRepo(repoUrl, repoPath);
 
-    // STEP 2: Build repo context
-    onProgress?.("📚 Building repo context...");
-    const context = await buildRepoContext(repoPath);
+    const context = {
+      files: repoData.files || [],
+    };
 
-    if (!context || !context.files || context.files.length === 0) {
-      onProgress?.("⚠️ No files found in repo (mock mode likely)");
+    if (!context.files || context.files.length === 0) {
+      throw new Error("No files found in repository");
     }
 
-    // STEP 3: Create plan using LLM
+    onProgress?.(`📚 Loaded ${context.files.length} files`);
+
+    // ✅ STEP 2: Create plan using LLM
     onProgress?.("🧠 Creating AI plan...");
     const plan = await createPlan(
       prompt,
@@ -52,7 +53,9 @@ export async function runAgent({
       throw new Error("LLM returned empty plan");
     }
 
-    // STEP 4: Apply changes
+    onProgress?.(`📝 Plan created with ${plan.length} steps`);
+
+    // ✅ STEP 3: Apply changes (still simulated for now)
     onProgress?.("✏️ Applying changes...");
     await applyPlan(
       plan,
@@ -62,7 +65,7 @@ export async function runAgent({
       llmConfig.model
     );
 
-    // STEP 5: Commit changes (mock in Vercel)
+    // ✅ STEP 4: Commit (mock)
     onProgress?.("📤 Committing changes...");
     await commitAndPush(repoPath, prompt);
 
@@ -72,6 +75,7 @@ export async function runAgent({
     return {
       success: true,
       message: "Agent completed successfully",
+      filesAnalyzed: context.files.length,
       plan,
     };
   } catch (error: any) {
