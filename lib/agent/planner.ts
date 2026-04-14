@@ -1,55 +1,35 @@
 import { askLLM } from "./llm";
 
-function extractJSON(text: string) {
-  try {
-    return JSON.parse(text);
-  } catch {}
-
-  // 🔥 fallback: extract JSON block
-  const match = text.match(/\[[\s\S]*\]/);
-  if (match) {
-    try {
-      return JSON.parse(match[0]);
-    } catch {}
-  }
-
-  return null;
-}
+// 🔥 MUST MATCH llm.ts EXACT TYPE
+type Provider = "groq" | "openai" | "gemini" | "claude";
 
 export async function createPlan(
   prompt: string,
   context: any,
   apiKey: string,
-  provider: string,
+  provider: Provider,
   model: string
 ) {
-  const trimmed = {
-    files: (context?.files || []).slice(0, 5),
-  };
-
   const llmPrompt = `
-You are a STRICT JSON generator.
+You are a senior software engineer AI agent.
 
-RULES:
-- Output ONLY valid JSON
-- NO explanation
-- NO markdown
-- NO text before or after
+STRICT RULE:
+Return ONLY valid JSON array. No markdown. No explanation.
 
-TASK:
-${prompt}
-
-FILES:
-${JSON.stringify(trimmed)}
-
-OUTPUT FORMAT:
+Format:
 [
   {
     "file": "path",
-    "action": "edit",
+    "action": "add | edit | delete | read",
     "instruction": "what to do"
   }
 ]
+
+User task:
+${prompt}
+
+Repo files (trimmed):
+${JSON.stringify(context.files.slice(0, 10), null, 2)}
 `;
 
   const res = await askLLM(llmPrompt, apiKey, provider, model);
@@ -58,11 +38,15 @@ OUTPUT FORMAT:
     throw new Error("Empty LLM response");
   }
 
-  const parsed = extractJSON(res);
+  try {
+    const cleaned = res
+      .replace(/```json/g, "")
+      .replace(/```/g, "")
+      .trim();
 
-  if (!parsed) {
-    throw new Error("Invalid JSON from LLM: " + res.slice(0, 300));
+    return JSON.parse(cleaned);
+  } catch (err) {
+    console.log("RAW LLM RESPONSE:", res);
+    throw new Error("Invalid JSON from LLM");
   }
-
-  return parsed;
 }
