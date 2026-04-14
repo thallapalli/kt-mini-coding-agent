@@ -1,20 +1,19 @@
 import { runAgent } from "@/lib/agent/runner";
 
-export async function POST(req) {
+export async function POST(req: Request) {
   const { repoUrl, prompt, apiKey } = await req.json();
 
   const encoder = new TextEncoder();
 
   const stream = new ReadableStream({
     async start(controller) {
-      const send = (msg) => {
+      const send = (msg: string) => {
         controller.enqueue(encoder.encode(msg + "\n"));
       };
 
       try {
         send("🚀 Starting agent...");
 
-        send("📦 Cloning repo...");
         const result = await runAgent({
           repoUrl,
           prompt,
@@ -22,11 +21,11 @@ export async function POST(req) {
           onProgress: send,
         });
 
-        send("✅ Done!");
+        send("🎉 Done");
         send("RESULT:" + JSON.stringify(result));
 
         controller.close();
-      } catch (err) {
+      } catch (err: any) {
         send("❌ Error: " + err.message);
         controller.close();
       }
@@ -35,7 +34,7 @@ export async function POST(req) {
 
   return new Response(stream, {
     headers: {
-      "Content-Type": "text/plain; charset=utf-8",
+      "Content-Type": "text/plain",
     },
   });
 }
