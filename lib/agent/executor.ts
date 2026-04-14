@@ -2,30 +2,41 @@ import fs from "fs";
 import path from "path";
 import { askLLM } from "./llm";
 
-export async function applyPlan(plan: any[], repoPath: string, apiKey: string) {
-  for (const step of plan) {
-    const filePath = path.join(repoPath, step.file);
+export async function applyPlan(
+  plan: any[],
+  repoPath: string,
+  apiKey: string,
+  provider: string,
+  model: string
+) {
+  for (const item of plan) {
+    if (item.action === "edit") {
+      const filePath = path.join(repoPath, item.file);
 
-    let currentCode = "";
+      const original = fs.readFileSync(filePath, "utf-8");
 
-    if (fs.existsSync(filePath)) {
-      currentCode = fs.readFileSync(filePath, "utf-8");
-    }
+      const prompt = `
+You are a code editor AI.
 
-    const prompt = `
-You are editing a file.
+Modify ONLY the required parts of the file.
+
+File content:
+${original}
 
 Instruction:
-${step.instruction}
+${item.instruction}
 
-Current file:
-${currentCode}
-
-Return ONLY full updated file.
+Return ONLY updated full file content.
 `;
 
-    const updated = await askLLM(prompt, apiKey);
+      const updated = await askLLM(
+        prompt,
+        apiKey,
+        provider,
+        model
+      );
 
-    fs.writeFileSync(filePath, updated, "utf-8");
+      fs.writeFileSync(filePath, updated, "utf-8");
+    }
   }
 }
