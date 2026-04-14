@@ -1,10 +1,8 @@
 import { runAgent } from "@/lib/agent/runner";
 
-export async function POST(req: Request) {
+export async function POST(req) {
   try {
-    const body = await req.json();
-
-    const { repoUrl, prompt, apiKey } = body;
+    const { repoUrl, prompt, apiKey } = await req.json();
 
     if (!repoUrl || !prompt || !apiKey) {
       return Response.json({ error: "Missing fields" }, { status: 400 });
@@ -17,7 +15,7 @@ export async function POST(req: Request) {
     });
 
     return Response.json({ success: true, result });
-  } catch (err: any) {
+  } catch (err) {
     return Response.json(
       { success: false, error: err.message },
       { status: 500 }
