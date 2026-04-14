@@ -10,33 +10,30 @@ export async function applyPlan(
   model: string
 ) {
   for (const item of plan) {
-    if (item.action === "edit") {
-      const filePath = path.join(repoPath, item.file);
+    const filePath = path.join(repoPath, item.file);
 
-      const original = fs.readFileSync(filePath, "utf-8");
+    if (!fs.existsSync(filePath)) continue;
 
-      const prompt = `
-You are a code editor AI.
+    const original = fs.readFileSync(filePath, "utf-8");
 
-Modify ONLY the required parts of the file.
-
-File content:
-${original}
+    const prompt = `
+You are editing a file.
 
 Instruction:
 ${item.instruction}
 
-Return ONLY updated full file content.
+File content:
+${original}
+
+Return ONLY updated file content.
 `;
 
-      const updated = await askLLM(
-        prompt,
-        apiKey,
-        provider,
-        model
-      );
+    const updated = await askLLM(prompt, apiKey, provider, model);
 
-      fs.writeFileSync(filePath, updated, "utf-8");
+    if (!updated || updated.trim().length === 0) {
+      throw new Error(`Empty response for file ${item.file}`);
     }
+
+    fs.writeFileSync(filePath, updated, "utf-8");
   }
 }
