@@ -17,22 +17,16 @@ export async function applyPlan(
     const original = fs.readFileSync(filePath, "utf-8");
 
     const prompt = `
-You are editing a file.
-
 Instruction:
 ${item.instruction}
 
-File content:
+File:
 ${original}
 
-Return ONLY updated file content.
+Return updated file only.
 `;
 
     const updated = await askLLM(prompt, apiKey, provider, model);
-
-    if (!updated || updated.trim().length === 0) {
-      throw new Error(`Empty response for file ${item.file}`);
-    }
 
     fs.writeFileSync(filePath, updated, "utf-8");
   }
