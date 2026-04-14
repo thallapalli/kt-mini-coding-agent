@@ -1,7 +1,12 @@
+type Provider = "groq" | "openai" | "gemini" | "claude";
+
+/**
+ * MAIN ENTRY
+ */
 export async function askLLM(
   prompt: string,
   apiKey: string,
-  provider: string,
+  provider: Provider,
   model: string
 ): Promise<string> {
   let result = "";
@@ -34,10 +39,12 @@ export async function askLLM(
   return result;
 }
 
-/* ---------------- COMMON FETCH WRAPPER ---------------- */
+/* =========================================================
+   SAFE FETCH WRAPPER (timeouts + clean error handling)
+========================================================= */
 async function safeFetch(url: string, options: any) {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 30000); // 30s timeout
+  const timeout = setTimeout(() => controller.abort(), 45000); // ⬅️ 45s (safer for LLM)
 
   try {
     const res = await fetch(url, {
@@ -62,14 +69,14 @@ async function safeFetch(url: string, options: any) {
     }
 
     return data;
-  } catch (err: any) {
-    throw new Error(`Fetch failed: ${err.message}`);
   } finally {
     clearTimeout(timeout);
   }
 }
 
-/* ---------------- GROQ ---------------- */
+/* =========================================================
+   GROQ
+========================================================= */
 async function callGroq(prompt: string, apiKey: string, model: string) {
   const data = await safeFetch(
     "https://api.groq.com/openai/v1/chat/completions",
@@ -80,8 +87,20 @@ async function callGroq(prompt: string, apiKey: string, model: string) {
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: model || "llama-3.1-8b-instant", // SAFE DEFAULT
-        messages: [{ role: "user", content: prompt }],
+        model: model || "llama-3.1-8b-instant",
+
+        // 🔥 CRITICAL FIX: lower randomness for JSON stability
+        temperature: 0.2,
+        top_p: 0.9,
+
+        messages: [
+          {
+            role: "system",
+            content:
+              "You are a strict JSON generator. Return ONLY valid JSON. No explanation.",
+          },
+          { role: "user", content: prompt },
+        ],
       }),
     }
   );
@@ -89,27 +108,40 @@ async function callGroq(prompt: string, apiKey: string, model: string) {
   return data?.choices?.[0]?.message?.content || "";
 }
 
-/* ---------------- OPENAI ---------------- */
+/* =========================================================
+   OPENAI
+========================================================= */
 async function callOpenAI(prompt: string, apiKey: string, model: string) {
-  const data = await safeFetch(
-    "https://api.openai.com/v1/chat/completions",
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: model || "gpt-4o-mini",
-        messages: [{ role: "user", content: prompt }],
-      }),
-    }
-  );
+  const data = await safeFetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: model || "gpt-4o-mini",
+
+      // 🔥 stability fix
+      temperature: 0.2,
+      top_p: 0.9,
+
+      messages: [
+        {
+          role: "system",
+          content:
+            "You are a strict JSON generator. Return ONLY valid JSON.",
+        },
+        { role: "user", content: prompt },
+      ],
+    }),
+  });
 
   return data?.choices?.[0]?.message?.content || "";
 }
 
-/* ---------------- GEMINI ---------------- */
+/* =========================================================
+   GEMINI
+========================================================= */
 async function callGemini(prompt: string, apiKey: string, model: string) {
   const data = await safeFetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${
@@ -117,9 +149,25 @@ async function callGemini(prompt: string, apiKey: string, model: string) {
     }:generateContent?key=${apiKey}`,
     {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+      },
       body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: {
+          temperature: 0.2, // 🔥 FIX
+          topP: 0.9,
+        },
+        contents: [
+          {
+            parts: [
+              {
+                text:
+                  "Return ONLY JSON.\n\n" +
+                  prompt,
+              },
+            ],
+          },
+        ],
       }),
     }
   );
@@ -127,24 +175,33 @@ async function callGemini(prompt: string, apiKey: string, model: string) {
   return data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
 }
 
-/* ---------------- CLAUDE ---------------- */
+/* =========================================================
+   CLAUDE
+========================================================= */
 async function callClaude(prompt: string, apiKey: string, model: string) {
-  const data = await safeFetch(
-    "https://api.anthropic.com/v1/messages",
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: model || "claude-3-haiku-20240307",
-        max_tokens: 1024,
-        messages: [{ role: "user", content: prompt }],
-      }),
-    }
-  );
+  const data = await safeFetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": apiKey,
+      "anthropic-version": "2023-06-01",
+    },
+    body: JSON.stringify({
+      model: model || "claude-3-haiku-20240307",
+
+      // 🔥 FIX
+      temperature: 0.2,
+      max_tokens: 2048,
+
+      messages: [
+        {
+          role: "user",
+          content:
+            "Return ONLY valid JSON.\n\n" + prompt,
+        },
+      ],
+    }),
+  });
 
   return data?.content?.[0]?.text || "";
 }
