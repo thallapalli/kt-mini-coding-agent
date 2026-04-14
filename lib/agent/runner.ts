@@ -7,7 +7,7 @@ export type RunAgentInput = {
   repoUrl: string;
   prompt: string;
   llmConfig: {
-    provider: "groq" | "openai" | "gemini" | "claude";
+    provider: string;
     model: string;
     apiKey: string;
   };
@@ -54,15 +54,14 @@ export async function runAgent({
 
     return {
       success: true,
-      message: "Agent completed successfully",
       plan,
     };
-  } catch (error: any) {
-    onProgress?.("❌ Failed: " + error.message);
+  } catch (err: any) {
+    onProgress?.("❌ Failed: " + err.message);
 
     return {
       success: false,
-      error: error.message,
+      error: err.message,
     };
   }
 }
