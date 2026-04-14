@@ -1,53 +1,43 @@
 import fs from "fs";
 import path from "path";
-import { askLLM } from "./llm";
+import { askLLM } from "../llm";
 
-// 🔥 SAME TYPE AS LLM FILE
-type Provider = "groq" | "openai" | "gemini" | "claude";
-
-export async function applyPlan(
-  plan: any[],
-  repoPath: string,
-  apiKey: string,
-  provider: Provider,
-  model: string
-) {
+export async function applyPlan(plan, repoPath, llmConfig) {
   for (const item of plan) {
     const filePath = path.join(repoPath, item.file);
 
-    if (item.action === "read") continue;
+    let current = "";
 
-    if (item.action === "add") {
-      fs.writeFileSync(filePath, item.instruction, "utf-8");
-    }
+    try {
+      if (fs.existsSync(filePath)) {
+        current = fs.readFileSync(filePath, "utf-8");
+      }
+    } catch (e) {}
 
-    if (item.action === "edit") {
-      const existing = fs.existsSync(filePath)
-        ? fs.readFileSync(filePath, "utf-8")
-        : "";
-
-      const prompt = `
-You are a code editor AI.
-
-Return ONLY updated file content.
-
-File:
-${existing}
+    const prompt = `
+You are editing a file.
 
 Instruction:
 ${item.instruction}
+
+Current file content:
+${current}
+
+Return ONLY updated full file content.
 `;
 
-      const updated = await askLLM(
-        prompt,
-        apiKey,
-        provider,   // ✅ now correctly typed
-        model
-      );
+    const updated = await askLLM(
+      prompt,
+      llmConfig.apiKey,
+      llmConfig.provider,
+      llmConfig.model
+    );
 
-      if (updated && updated.trim().length > 0) {
-        fs.writeFileSync(filePath, updated, "utf-8");
-      }
+    if (!updated || updated.trim().length === 0) {
+      throw new Error("Empty file update from LLM");
     }
+
+    fs.mkdirSync(path.dirname(filePath), { recursive: true });
+    fs.writeFileSync(filePath, updated, "utf-8");
   }
 }
