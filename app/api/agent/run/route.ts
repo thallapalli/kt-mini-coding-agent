@@ -1,13 +1,7 @@
 import { runAgent } from "@/lib/agent/runner";
 
 export async function POST(req: Request) {
-  const body = await req.json();
-
-  const repoUrl = body.repoUrl;
-  const prompt = body.prompt;
-
-  // NEW: full LLM config support (optional UI upgrade)
-  const llmConfig = body.llmConfig;
+  const { repoUrl, prompt } = await req.json();
 
   const encoder = new TextEncoder();
 
@@ -18,52 +12,35 @@ export async function POST(req: Request) {
       };
 
       try {
-        send("🚀 Starting AI Coding Agent...");
-        send(`📦 Repo: ${repoUrl}`);
+        send("🚀 Starting agent...");
 
-        // -----------------------------
-        // API KEY RESOLUTION LOGIC
-        // -----------------------------
-
-        const apiKey =
-          llmConfig?.apiKey || process.env.GROQ_API_KEY;
-
-        const provider = llmConfig?.provider || "groq";
-        const model =
-          llmConfig?.model || "llama-3.3-70b-versatile";
+        const apiKey = process.env.GROQ_API_KEY;
 
         if (!apiKey) {
-          send("❌ ERROR: Missing API key");
-          send("👉 Add GROQ_API_KEY in Vercel env or pass from UI");
+          send("❌ Missing GROQ_API_KEY");
           controller.close();
           return;
         }
 
-        send(`🧠 Provider: ${provider}`);
-        send(`🤖 Model: ${model}`);
-
-        send("📚 Initializing repo analysis...");
+        send("📦 Running agent...");
 
         const result = await runAgent({
           repoUrl,
           prompt,
           llmConfig: {
-            provider,
-            model,
+            provider: "groq",
+            model: "llama-3.1-70b-versatile",
             apiKey,
           },
           onProgress: send,
         });
 
-        send("🎉 Agent Execution Complete");
-
-        send("📄 Final Result:");
-        send(JSON.stringify(result, null, 2));
+        send("🎉 Done");
+        send("RESULT:" + JSON.stringify(result));
 
         controller.close();
       } catch (err: any) {
-        send("❌ Agent Failed");
-        send("Error: " + (err?.message || "Unknown error"));
+        send("❌ Error: " + err.message);
         controller.close();
       }
     },
@@ -72,8 +49,6 @@ export async function POST(req: Request) {
   return new Response(stream, {
     headers: {
       "Content-Type": "text/plain; charset=utf-8",
-      "Cache-Control": "no-cache",
-      Connection: "keep-alive",
     },
   });
 }
