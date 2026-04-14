@@ -87,8 +87,12 @@ async function callGroq(prompt: string, apiKey: string, model: string) {
       body: JSON.stringify({
         model: model || "llama-3.1-8b-instant",
         temperature: 0.2,
+        top_p: 0.9,
         messages: [
-          { role: "system", content: "Return ONLY valid output." },
+          {
+            role: "system",
+            content: "Return ONLY valid JSON or structured output.",
+          },
           { role: "user", content: prompt },
         ],
       }),
@@ -110,7 +114,13 @@ async function callOpenAI(prompt: string, apiKey: string, model: string) {
     body: JSON.stringify({
       model: model || "gpt-4o-mini",
       temperature: 0.2,
-      messages: [{ role: "user", content: prompt }],
+      messages: [
+        {
+          role: "system",
+          content: "Return ONLY valid JSON or structured output.",
+        },
+        { role: "user", content: prompt },
+      ],
     }),
   });
 
@@ -128,7 +138,19 @@ async function callGemini(prompt: string, apiKey: string, model: string) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: {
+          temperature: 0.2,
+          topP: 0.9,
+        },
+        contents: [
+          {
+            parts: [
+              {
+                text: "Return ONLY valid JSON.\n\n" + prompt,
+              },
+            ],
+          },
+        ],
       }),
     }
   );
@@ -149,7 +171,13 @@ async function callClaude(prompt: string, apiKey: string, model: string) {
     body: JSON.stringify({
       model: model || "claude-3-haiku-20240307",
       max_tokens: 1024,
-      messages: [{ role: "user", content: prompt }],
+      temperature: 0.2,
+      messages: [
+        {
+          role: "user",
+          content: "Return ONLY valid JSON.\n\n" + prompt,
+        },
+      ],
     }),
   });
 
