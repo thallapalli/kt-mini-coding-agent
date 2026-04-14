@@ -3,16 +3,14 @@ import { buildRepoContext } from "./context";
 import { createPlan } from "./planner";
 import { applyPlan } from "./executor";
 
-type RunAgentInput = {
+export type RunAgentInput = {
   repoUrl: string;
   prompt: string;
-
   llmConfig: {
     provider: "groq" | "openai" | "gemini" | "claude";
     model: string;
     apiKey: string;
   };
-
   onProgress?: (msg: string) => void;
 };
 
@@ -22,23 +20,16 @@ export async function runAgent({
   llmConfig,
   onProgress,
 }: RunAgentInput) {
-  // ⚠️ Vercel-safe temp directory
   const repoPath = `/tmp/repo-${Date.now()}`;
 
   try {
-    // STEP 1: Clone repo
-    onProgress?.("📦 Cloning repository...");
+    onProgress?.("📦 Cloning repo...");
     await cloneRepo(repoUrl, repoPath);
 
-    // STEP 2: Build repo context
-    onProgress?.("📚 Reading repository files...");
+    onProgress?.("📚 Building repo context...");
     const context = await buildRepoContext(repoPath);
 
-    // STEP 3: Create AI plan (multi-LLM support)
-    onProgress?.(
-      `🧠 Generating plan using ${llmConfig.provider} / ${llmConfig.model}...`
-    );
-
+    onProgress?.("🧠 Creating AI plan...");
     const plan = await createPlan(
       prompt,
       context,
@@ -47,25 +38,27 @@ export async function runAgent({
       llmConfig.model
     );
 
-    // STEP 4: Apply changes
     onProgress?.("✏️ Applying changes...");
-    await applyPlan(plan, repoPath, llmConfig.apiKey);
+    await applyPlan(
+      plan,
+      repoPath,
+      llmConfig.apiKey,
+      llmConfig.provider,
+      llmConfig.model
+    );
 
-    // STEP 5: Commit changes
     onProgress?.("📤 Committing changes...");
     await commitAndPush(repoPath, prompt);
 
-    // DONE
-    onProgress?.("✅ Completed successfully");
+    onProgress?.("✅ Done");
 
     return {
       success: true,
-      repoPath,
+      message: "Agent completed successfully",
       plan,
-      message: "Agent finished execution",
     };
   } catch (error: any) {
-    onProgress?.("❌ Error: " + error.message);
+    onProgress?.("❌ Failed: " + error.message);
 
     return {
       success: false,
