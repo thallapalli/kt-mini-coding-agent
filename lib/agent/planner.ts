@@ -28,13 +28,7 @@ Return ONLY valid JSON array:
 
   const res = await askLLM(llmPrompt, apiKey, provider, model);
 
-  if (!res || res.trim().length === 0) {
-    throw new Error("Empty LLM response");
-  }
+  if (!res) throw new Error("Empty LLM response");
 
-  try {
-    return JSON.parse(res);
-  } catch (e) {
-    throw new Error("Invalid JSON from LLM: " + res);
-  }
+  return JSON.parse(res);
 }
