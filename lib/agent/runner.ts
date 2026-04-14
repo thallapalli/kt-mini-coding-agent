@@ -1,37 +1,37 @@
-import { cloneRepo } from "./github";
+import { cloneRepo, commitAndPush } from "./github";
 import { buildRepoContext } from "./context";
 import { createPlan } from "./planner";
 import { applyPlan } from "./executor";
-import { commitAndPush } from "./github";
 
 export async function runAgent({
   repoUrl,
   prompt,
   apiKey,
+  onProgress,
 }: {
   repoUrl: string;
   prompt: string;
   apiKey: string;
+  onProgress?: (msg: string) => void;
 }) {
   const repoPath = `/tmp/repo-${Date.now()}`;
 
-  // 1. Clone repo
+  onProgress?.("📦 Cloning repo...");
   await cloneRepo(repoUrl, repoPath);
 
-  // 2. Read repo structure
+  onProgress?.("📚 Reading repo...");
   const context = await buildRepoContext(repoPath);
 
-  // 3. Create plan using LLM
+  onProgress?.("🧠 Planning...");
   const plan = await createPlan(prompt, context, apiKey);
 
-  // 4. Apply changes
+  onProgress?.("✏️ Editing files...");
   await applyPlan(plan, repoPath, apiKey);
 
-  // 5. Commit & push
+  onProgress?.("📤 Committing...");
   await commitAndPush(repoPath, prompt);
 
-  return {
-    message: "Agent completed successfully",
-    plan,
-  };
+  onProgress?.("✅ Done");
+
+  return { plan };
 }
