@@ -1,10 +1,6 @@
 import { askLLM } from "./llm";
 
-export async function createPlan(
-  prompt: string,
-  context: any,
-  apiKey: string
-) {
+export async function createPlan(prompt: string, context: any, apiKey: string) {
   const llmPrompt = `
 You are a senior software engineer AI agent.
 
