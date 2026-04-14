@@ -32,6 +32,8 @@ export async function askLLM(
       throw new Error("Unsupported provider: " + provider);
   }
 
+  result = cleanLLMOutput(result);
+
   if (!result || result.trim().length === 0) {
     throw new Error(`${provider} returned empty response`);
   }
@@ -40,11 +42,27 @@ export async function askLLM(
 }
 
 /* =========================================================
-   SAFE FETCH WRAPPER (timeouts + clean error handling)
+   🔥 NEW: CLEAN OUTPUT FIX (VERY IMPORTANT)
+========================================================= */
+function cleanLLMOutput(text: string) {
+  if (!text) return "";
+
+  // remove markdown ```json ... ```
+  text = text.replace(/```json/g, "");
+  text = text.replace(/```/g, "");
+
+  // trim spaces/newlines
+  text = text.trim();
+
+  return text;
+}
+
+/* =========================================================
+   SAFE FETCH WRAPPER
 ========================================================= */
 async function safeFetch(url: string, options: any) {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 45000); // ⬅️ 45s (safer for LLM)
+  const timeout = setTimeout(() => controller.abort(), 45000);
 
   try {
     const res = await fetch(url, {
@@ -63,8 +81,7 @@ async function safeFetch(url: string, options: any) {
 
     if (!res.ok) {
       throw new Error(
-        data?.error?.message ||
-          `HTTP ${res.status}: ${JSON.stringify(data)}`
+        data?.error?.message || `HTTP ${res.status}: ${text}`
       );
     }
 
@@ -88,16 +105,12 @@ async function callGroq(prompt: string, apiKey: string, model: string) {
       },
       body: JSON.stringify({
         model: model || "llama-3.1-8b-instant",
-
-        // 🔥 CRITICAL FIX: lower randomness for JSON stability
         temperature: 0.2,
         top_p: 0.9,
-
         messages: [
           {
             role: "system",
-            content:
-              "You are a strict JSON generator. Return ONLY valid JSON. No explanation.",
+            content: "Return ONLY valid JSON. No markdown. No explanation.",
           },
           { role: "user", content: prompt },
         ],
@@ -120,16 +133,12 @@ async function callOpenAI(prompt: string, apiKey: string, model: string) {
     },
     body: JSON.stringify({
       model: model || "gpt-4o-mini",
-
-      // 🔥 stability fix
       temperature: 0.2,
       top_p: 0.9,
-
       messages: [
         {
           role: "system",
-          content:
-            "You are a strict JSON generator. Return ONLY valid JSON.",
+          content: "Return ONLY valid JSON.",
         },
         { role: "user", content: prompt },
       ],
@@ -149,21 +158,17 @@ async function callGemini(prompt: string, apiKey: string, model: string) {
     }:generateContent?key=${apiKey}`,
     {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         generationConfig: {
-          temperature: 0.2, // 🔥 FIX
+          temperature: 0.2,
           topP: 0.9,
         },
         contents: [
           {
             parts: [
               {
-                text:
-                  "Return ONLY JSON.\n\n" +
-                  prompt,
+                text: "Return ONLY JSON.\n\n" + prompt,
               },
             ],
           },
@@ -188,16 +193,12 @@ async function callClaude(prompt: string, apiKey: string, model: string) {
     },
     body: JSON.stringify({
       model: model || "claude-3-haiku-20240307",
-
-      // 🔥 FIX
       temperature: 0.2,
       max_tokens: 2048,
-
       messages: [
         {
           role: "user",
-          content:
-            "Return ONLY valid JSON.\n\n" + prompt,
+          content: "Return ONLY valid JSON.\n\n" + prompt,
         },
       ],
     }),
