@@ -11,32 +11,17 @@ export default function Page() {
   const [status, setStatus] = useState("idle");
 
   async function runAgent() {
-    if (!repoUrl || !apiKey || !prompt) {
-      alert("Please fill all fields");
-      return;
-    }
-
     setLoading(true);
-    setStatus("sending request...");
+    setStatus("running agent...");
 
     setMessages((m) => [...m, { role: "user", text: prompt }]);
 
     try {
-      setStatus("running agent...");
-
       const res = await fetch("/api/agent/run", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          repoUrl,
-          prompt,
-          apiKey,
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ repoUrl, apiKey, prompt }),
       });
-
-      setStatus("processing result...");
 
       const data = await res.json();
 
@@ -49,16 +34,8 @@ export default function Page() {
       ]);
 
       setStatus("done");
-    } catch (err) {
+    } catch (e) {
       setStatus("error");
-
-      setMessages((m) => [
-        ...m,
-        {
-          role: "assistant",
-          text: err.message,
-        },
-      ]);
     }
 
     setLoading(false);
@@ -66,45 +43,42 @@ export default function Page() {
 
   return (
     <div style={{ padding: 20, fontFamily: "Arial" }}>
-      <h2>⚡ AI Coding Agent (Vercel)</h2>
+      <h2>⚡ AI Coding Agent</h2>
 
-      <p><b>Status:</b> {status}</p>
+      <p>Status: {status}</p>
 
       <input
-        placeholder="GitHub Repo URL"
+        placeholder="Repo URL"
         value={repoUrl}
         onChange={(e) => setRepoUrl(e.target.value)}
-        style={{ display: "block", marginBottom: 10, width: "100%" }}
+        style={{ display: "block", marginBottom: 10 }}
       />
 
       <input
-        placeholder="API Key (Groq/OpenAI)"
+        placeholder="API Key"
         value={apiKey}
         onChange={(e) => setApiKey(e.target.value)}
-        style={{ display: "block", marginBottom: 10, width: "100%" }}
+        style={{ display: "block", marginBottom: 10 }}
       />
 
       <textarea
-        placeholder="What should the agent do?"
+        placeholder="Prompt"
         value={prompt}
         onChange={(e) => setPrompt(e.target.value)}
-        style={{ display: "block", marginBottom: 10, width: "100%", height: 120 }}
+        style={{ display: "block", marginBottom: 10, height: 120 }}
       />
 
       <button onClick={runAgent} disabled={loading}>
-        {loading ? "Running Agent..." : "Run Agent 🚀"}
+        {loading ? "Running..." : "Run Agent"}
       </button>
 
       <hr />
 
-      <div>
-        {messages.map((m, i) => (
-          <div key={i} style={{ marginBottom: 12 }}>
-            <b>{m.role}</b>
-            <pre style={{ whiteSpace: "pre-wrap" }}>{m.text}</pre>
-          </div>
-        ))}
-      </div>
+      {messages.map((m, i) => (
+        <pre key={i} style={{ background: "#111", color: "#0f0", padding: 10 }}>
+          {m.role}: {m.text}
+        </pre>
+      ))}
     </div>
   );
 }
