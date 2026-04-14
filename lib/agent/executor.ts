@@ -1,5 +1,4 @@
 import fs from "fs";
-import path from "path";
 import { askLLM } from "./llm";
 
 export async function applyPlan(
@@ -9,25 +8,33 @@ export async function applyPlan(
   provider: string,
   model: string
 ) {
-  for (const item of plan) {
-    const filePath = path.join(repoPath, item.file);
+  for (const item of plan || []) {
+    const filePath = `${repoPath}/${item.file}`;
 
-    if (!fs.existsSync(filePath)) continue;
+    try {
+      if (!fs.existsSync(filePath)) continue;
 
-    const original = fs.readFileSync(filePath, "utf-8");
+      const current = fs.readFileSync(filePath, "utf-8");
 
-    const prompt = `
+      const prompt = `
+You are editing a file.
+
 Instruction:
 ${item.instruction}
 
-File:
-${original}
+Current file:
+${current}
 
-Return updated file only.
+Return ONLY updated full file content.
 `;
 
-    const updated = await askLLM(prompt, apiKey, provider, model);
+      const updated = await askLLM(prompt, apiKey, provider, model);
 
-    fs.writeFileSync(filePath, updated, "utf-8");
+      if (updated && updated.length > 0) {
+        fs.writeFileSync(filePath, updated, "utf-8");
+      }
+    } catch (err) {
+      console.log("❌ executor error:", err);
+    }
   }
 }
