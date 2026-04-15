@@ -37,9 +37,7 @@ export async function runAgent({
     const plan = await createPlan(
       prompt,
       context,
-      llmConfig.apiKey,
-      llmConfig.provider,
-      llmConfig.model
+      llmConfig
     );
 
     onProgress?.("✏️ Applying changes...");
@@ -47,9 +45,7 @@ export async function runAgent({
     await applyPlan(
       plan,
       repoPath,
-      llmConfig.apiKey,
-      llmConfig.provider,
-      llmConfig.model
+      llmConfig
     );
 
     onProgress?.("📤 Committing changes...");

@@ -2,16 +2,18 @@
 
 import { useState } from "react";
 
+type Provider = "groq" | "openai" | "gemini" | "claude";
+
 export default function Home() {
   const [repoUrl, setRepoUrl] = useState("");
   const [prompt, setPrompt] = useState("");
-  const [provider, setProvider] = useState("groq");
+  const [provider, setProvider] = useState<Provider>("groq");
   const [model, setModel] = useState("llama-3.1-8b-instant");
 
   const [output, setOutput] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const models = {
+  const models: Record<Provider, string[]> = {
     groq: ["llama-3.1-8b-instant"],
     openai: ["gpt-4o-mini"],
     gemini: ["gemini-1.5-flash"],
@@ -31,6 +33,11 @@ export default function Home() {
         model,
       }),
     });
+
+    if (!res.body) {
+      setLoading(false);
+      return;
+    }
 
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
@@ -80,7 +87,7 @@ export default function Home() {
           style={styles.select}
           value={provider}
           onChange={(e) => {
-            const p = e.target.value;
+            const p = e.target.value as Provider;
             setProvider(p);
             setModel(models[p][0]);
           }}
@@ -115,7 +122,7 @@ export default function Home() {
 
 /* ---------------- STYLES ---------------- */
 
-const styles = {
+const styles: { [key: string]: React.CSSProperties } = {
   container: {
     padding: 16,
     maxWidth: 600,
