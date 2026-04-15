@@ -142,4 +142,3 @@ async function callClaude(prompt: string, apiKey: string, model: string) {
 
   return data?.content?.[0]?.text || "";
 }
-export { askLLM };
